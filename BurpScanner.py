@@ -21,7 +21,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
 
     def registerExtenderCallbacks(self, callbacks):
         self._callbacks = callbacks
-        self._callbacks.setExtensionName("BurpScanner")
+        self._callbacks.setExtensionName("NucleiScanner")
         self._helpers = callbacks.getHelpers()
 
         # Initialize User Interface
@@ -203,23 +203,17 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.optionsPanel.add(headersScrollPane, gbc)
         gbc.gridwidth = 1
 
-        # JSON Output Checkbox
-        gbc.gridx = 0
-        gbc.gridy = 12
-        self.jsonOutputCheckbox = JCheckBox("Enable JSON Output (-json)")
-        self.jsonOutputCheckbox.setToolTipText("Include the -json flag to enable JSON output for parsing findings")
-        self.jsonOutputCheckbox.addActionListener(self.updateCommandPreview)
-        self.optionsPanel.add(self.jsonOutputCheckbox, gbc)
+        # Rimuovi la Checkbox per l'Output JSON
 
         # Command Preview Area (now editable) and Reset Button
         gbc.gridx = 0
-        gbc.gridy = 13
+        gbc.gridy = 12
         gbc.gridwidth = 3
         self.optionsPanel.add(JSeparator(SwingConstants.HORIZONTAL), gbc)
         gbc.gridwidth = 1
 
         gbc.gridx = 0
-        gbc.gridy = 14
+        gbc.gridy = 13
         self.optionsPanel.add(JLabel("Command:"), gbc)
         gbc.gridx = 1
         gbc.gridwidth = 2
@@ -259,7 +253,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.updateCommandPreview()
 
     def getTabCaption(self):
-        return "BurpScanner"
+        return "NucleiScanner"
 
     def getUiComponent(self):
         return self.mainPanel
@@ -311,8 +305,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
             self.autoScanCheckbox.setSelected(self._callbacks.loadExtensionSetting("autoScan") == 'True')
         if self._callbacks.loadExtensionSetting("severity"):
             self.severityDropdown.setSelectedItem(self._callbacks.loadExtensionSetting("severity"))
-        if self._callbacks.loadExtensionSetting("jsonOutput"):
-            self.jsonOutputCheckbox.setSelected(self._callbacks.loadExtensionSetting("jsonOutput") == 'True')
         # Load the last used command if available
         if self._callbacks.loadExtensionSetting("lastCommand"):
             self.commandPreviewArea.setText(self._callbacks.loadExtensionSetting("lastCommand"))
@@ -329,7 +321,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self._callbacks.saveExtensionSetting("newTemplates", str(self.newTemplatesCheckbox.isSelected()))
         self._callbacks.saveExtensionSetting("autoScan", str(self.autoScanCheckbox.isSelected()))
         self._callbacks.saveExtensionSetting("severity", self.severityDropdown.getSelectedItem())
-        self._callbacks.saveExtensionSetting("jsonOutput", str(self.jsonOutputCheckbox.isSelected()))
         # Save the last used command
         self._callbacks.saveExtensionSetting("lastCommand", self.commandPreviewArea.getText())
 
@@ -513,7 +504,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         menu = []
         messages = invocation.getSelectedMessages()
         if messages:
-            menuItem = JMenuItem("Send to BurpScanner", actionPerformed=lambda x, inv=invocation: self.sendToNuclei(inv))
+            menuItem = JMenuItem("Send to NucleiScanner", actionPerformed=lambda x, inv=invocation: self.sendToNuclei(inv))
             menu.append(menuItem)
         return menu
 
@@ -578,9 +569,8 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
             for header in header_lines:
                 cmd.extend(['-H', header.strip()])
 
-        # JSON Output
-        if self.jsonOutputCheckbox.isSelected():
-            cmd.append('-json')
+        # Aggiungi il flag -j di default
+        cmd.append('-j')
 
         # Proxy (must be added at the end)
         proxy = self.proxyField.getText().strip()

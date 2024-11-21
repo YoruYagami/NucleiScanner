@@ -1,15 +1,15 @@
-# BurpScanner
+# NucleiScanner
 
 ## Overview
 
-**BurpScanner** is a custom Burp Suite extension designed to integrate the powerful Nuclei scanner directly into Burp Suite. This tool enables users to perform vulnerability scans with Nuclei while leveraging Burp Suite's interface and functionality.
+**NucleiScanner** is a custom Burp Suite extension designed to integrate the powerful Nuclei scanner directly into Burp Suite. This tool enables users to perform vulnerability scans with Nuclei while leveraging Burp Suite's interface and functionality.
 
 ## Features
 
 - **Nuclei Integration**: Run Nuclei scans directly within Burp Suite.
 - **Customizable Commands**: Modify scan parameters, severity levels, and additional Nuclei options.
 - **Real-Time Results**: View scan results live in Burp Suite's UI.
-- **Context Menu Integration**: Send requests directly to BurpScanner from the Burp Suite interface.
+- **Context Menu Integration**: Send requests directly to NucleiScanner from the Burp Suite interface.
 - **Configuration Management**: Automatically load and save Nuclei paths and settings.
 - **Result Export**: Supports JSON output for further analysis.
 - **Custom Scan Issues**: Automatically create Burp Suite issues based on Nuclei findings.
@@ -22,15 +22,15 @@
 ## Installation
 
 1. Ensure Burp Suite and Nuclei are installed.
-2. Clone or download the BurpScanner extension.
+2. Clone or download the NucleiScanner extension.
 3. Open Burp Suite, go to the "Extender" tab, and add the `.py` script as an extension.
-4. Once loaded, the **BurpScanner** tab will appear in Burp Suite.
+4. Once loaded, the **NucleiScanner** tab will appear in Burp Suite.
 
 ## Usage
 
 ### Initial Configuration
 
-1. Open the **BurpScanner** tab.
+1. Open the **NucleiScanner** tab.
 2. Specify the paths for the Nuclei binary and templates directory.
 3. Customize the scan parameters using the provided fields and checkboxes.
 4. Use the command preview area to verify or modify the generated Nuclei command.
@@ -42,11 +42,11 @@
 3. View live results in the "Scan Results" panel.
 4. To stop the scan, click **Stop Scan**.
 
-### Sending Requests to BurpScanner
+### Sending Requests to NucleiScanner
 
 1. Right-click a request in Burp Suite.
-2. Select **Send to BurpScanner**.
-3. The request's URL and headers will be populated in the BurpScanner UI.
+2. Select **Send to NucleiScanner**.
+3. The request's URL and headers will be populated in the NucleiScanner UI.
 
 ## Options and Parameters
 
@@ -58,7 +58,6 @@
 - **Rate Limit**: Limit the number of requests per second.
 - **Concurrency**: Number of concurrent threads.
 - **Proxy**: Use a proxy for Nuclei scans.
-- **JSON Output**: Enable JSON output for results.
 
 ## Custom Scan Issues
 

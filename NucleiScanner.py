@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 try:
     from burp import IBurpExtender, ITab, IScanIssue, IContextMenuFactory, IExtensionStateListener
     from java.awt import BorderLayout, GridBagLayout, GridBagConstraints, Insets, Dimension, Color, EventQueue
@@ -16,6 +18,71 @@ try:
 
 except ImportError as e:
     print(e)
+
+
+class FieldListener(DocumentListener):
+    """
+    A helper class that fires a callback whenever the text in a JTextField/JTextArea changes.
+    """
+    def __init__(self, callback):
+        self.callback = callback
+
+    def insertUpdate(self, event):
+        self.callback()
+
+    def removeUpdate(self, event):
+        self.callback()
+
+    def changedUpdate(self, event):
+        self.callback()
+
+
+class CustomScanIssue(IScanIssue):
+    """
+    Implements IScanIssue for adding custom issues to the Burp Scanner tab.
+    """
+    def __init__(self, httpService, url, httpMessages, name, detail, severity, confidence):
+        self._httpService = httpService
+        self._url = url
+        self._httpMessages = httpMessages
+        self._name = name
+        self._detail = detail
+        self._severity = severity
+        self._confidence = confidence
+
+    def getUrl(self):
+        return self._url
+
+    def getIssueName(self):
+        return self._name
+
+    def getIssueType(self):
+        return 0
+
+    def getSeverity(self):
+        return self._severity
+
+    def getConfidence(self):
+        return self._confidence
+
+    def getIssueBackground(self):
+        return ""
+
+    def getRemediationBackground(self):
+        return ""
+
+    def getIssueDetail(self):
+        return self._detail
+
+    def getRemediationDetail(self):
+        return ""
+
+    def getHttpMessages(self):
+        return self._httpMessages
+
+    def getHttpService(self):
+        return self._httpService
+
 
 class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFactory):
 
@@ -147,13 +214,13 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         # Checkboxes for options
         gbc.gridx = 0
         gbc.gridy = 7
-        self.newTemplatesCheckbox = JCheckBox("Run only New Templates")
+        self.newTemplatesCheckbox = JCheckBox("Run only New Templates (-nt)")
         self.newTemplatesCheckbox.setToolTipText("Include only latest released templates in the scan")
         self.newTemplatesCheckbox.addActionListener(self.updateCommandPreview)
         self.optionsPanel.add(self.newTemplatesCheckbox, gbc)
 
         gbc.gridx = 1
-        self.autoScanCheckbox = JCheckBox("Tech Detection Automatic Scan")
+        self.autoScanCheckbox = JCheckBox("Tech Detection Automatic Scan (-as)")
         self.autoScanCheckbox.setToolTipText("Enable automatic scanning with Wappalyzer")
         self.autoScanCheckbox.addActionListener(self.updateCommandPreview)
         self.optionsPanel.add(self.autoScanCheckbox, gbc)
@@ -203,9 +270,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.optionsPanel.add(headersScrollPane, gbc)
         gbc.gridwidth = 1
 
-        # Rimuovi la Checkbox per l'Output JSON
-
-        # Command Preview Area (now editable) and Reset Button
+        # Separator before command preview
         gbc.gridx = 0
         gbc.gridy = 12
         gbc.gridwidth = 3
@@ -234,7 +299,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.resultsPanel = JPanel(BorderLayout())
         self.resultsPanel.setBorder(TitledBorder("Scan Results"))
 
-        # Results area with real-time output
         self.resultsArea = JTextArea()
         self.resultsArea.setEditable(False)
         self.resultsArea.setLineWrap(True)
@@ -287,27 +351,35 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
                 self.templatesPathField.setText(saved_templates)
 
         # Load other settings
-        if self._callbacks.loadExtensionSetting("customArgs"):
-            self.customArgsField.setText(self._callbacks.loadExtensionSetting("customArgs"))
-        if self._callbacks.loadExtensionSetting("proxy"):
-            self.proxyField.setText(self._callbacks.loadExtensionSetting("proxy"))
-        if self._callbacks.loadExtensionSetting("rateLimit"):
-            self.rateLimitField.setText(self._callbacks.loadExtensionSetting("rateLimit"))
-        if self._callbacks.loadExtensionSetting("concurrency"):
-            self.concurrencyField.setText(self._callbacks.loadExtensionSetting("concurrency"))
-        if self._callbacks.loadExtensionSetting("tags"):
-            self.tagsField.setText(self._callbacks.loadExtensionSetting("tags"))
-        if self._callbacks.loadExtensionSetting("headers"):
-            self.headersArea.setText(self._callbacks.loadExtensionSetting("headers"))
-        if self._callbacks.loadExtensionSetting("newTemplates"):
-            self.newTemplatesCheckbox.setSelected(self._callbacks.loadExtensionSetting("newTemplates") == 'True')
-        if self._callbacks.loadExtensionSetting("autoScan"):
-            self.autoScanCheckbox.setSelected(self._callbacks.loadExtensionSetting("autoScan") == 'True')
-        if self._callbacks.loadExtensionSetting("severity"):
-            self.severityDropdown.setSelectedItem(self._callbacks.loadExtensionSetting("severity"))
-        # Load the last used command if available
-        if self._callbacks.loadExtensionSetting("lastCommand"):
-            self.commandPreviewArea.setText(self._callbacks.loadExtensionSetting("lastCommand"))
+        def load_setting(field, key):
+            val = self._callbacks.loadExtensionSetting(key)
+            if val:
+                field.setText(val)
+
+        load_setting(self.customArgsField, "customArgs")
+        load_setting(self.proxyField, "proxy")
+        load_setting(self.rateLimitField, "rateLimit")
+        load_setting(self.concurrencyField, "concurrency")
+        load_setting(self.tagsField, "tags")
+        headers_val = self._callbacks.loadExtensionSetting("headers")
+        if headers_val:
+            self.headersArea.setText(headers_val)
+
+        newTemplates_val = self._callbacks.loadExtensionSetting("newTemplates")
+        if newTemplates_val:
+            self.newTemplatesCheckbox.setSelected(newTemplates_val == 'True')
+
+        autoScan_val = self._callbacks.loadExtensionSetting("autoScan")
+        if autoScan_val:
+            self.autoScanCheckbox.setSelected(autoScan_val == 'True')
+
+        severity_val = self._callbacks.loadExtensionSetting("severity")
+        if severity_val:
+            self.severityDropdown.setSelectedItem(severity_val)
+
+        last_cmd = self._callbacks.loadExtensionSetting("lastCommand")
+        if last_cmd:
+            self.commandPreviewArea.setText(last_cmd)
 
     def saveConfig(self):
         self._callbacks.saveExtensionSetting("nucleiPath", self.nucleiPathField.getText())
@@ -321,7 +393,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self._callbacks.saveExtensionSetting("newTemplates", str(self.newTemplatesCheckbox.isSelected()))
         self._callbacks.saveExtensionSetting("autoScan", str(self.autoScanCheckbox.isSelected()))
         self._callbacks.saveExtensionSetting("severity", self.severityDropdown.getSelectedItem())
-        # Save the last used command
         self._callbacks.saveExtensionSetting("lastCommand", self.commandPreviewArea.getText())
 
     def extensionUnloaded(self):
@@ -346,7 +417,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.stopButton.setEnabled(True)
         self.resultsArea.setText("")
 
-        # Use the command from the command preview area
         cmd = self.commandPreviewArea.getText().strip()
         if not cmd:
             JOptionPane.showMessageDialog(self.mainPanel, "Command is empty. Please specify a command.", "Error", JOptionPane.ERROR_MESSAGE)
@@ -367,15 +437,21 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
 
     def stopAllScans(self):
         for p in list(self.runningSubprocesses):
-            p.terminate()
+            try:
+                p.terminate()
+            except:
+                try:
+                    p.kill()
+                except:
+                    pass
             self.runningSubprocesses.remove(p)
+
         self.isScanning = False
         self.scanButton.setEnabled(True)
         self.stopButton.setEnabled(False)
 
     def runNucleiScan(self, cmd):
         self.appendResult("Starting scan...\n")
-        # Display the executed command
         self.appendResult("Executed command: {}\n".format(' '.join(cmd)))
 
         try:
@@ -387,13 +463,15 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
             for line in iter(process.stdout.readline, ''):
                 if not self.isScanning:
                     break
-                line_clean = ansi_escape.sub('', line)  # Remove ANSI escape sequences
+                line_clean = ansi_escape.sub('', line)
                 self.appendResult(line_clean)
                 self.handleNucleiResult(line_clean.strip())
 
             process.stdout.close()
             process.wait()
-            self.runningSubprocesses.remove(process)
+
+            if process in self.runningSubprocesses:
+                self.runningSubprocesses.remove(process)
 
             if self.isScanning:
                 self.appendResult("\nScan completed.\n")
@@ -408,19 +486,19 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
             self.stopButton.setEnabled(False)
 
     def handleNucleiResult(self, result):
+        # Attempt to parse JSON lines from nuclei
         try:
             finding = json.loads(result)
             info = finding.get('info', {})
             name = info.get('name', 'Nuclei Detection')
-            severity = info.get('severity', 'Information').capitalize()
+            severity = info.get('severity', 'information').capitalize()
             description = info.get('description', '')
             matched_at = finding.get('matched-at', '')
-            template_id = finding.get('template-id', '')
             reference = info.get('reference', [])
             vuln_tags = info.get('tags', '')
+            template_id = finding.get('template-id', '')
 
-            detail = "Template ID: {}\n".format(template_id)
-            detail += "Matched at: {}\n".format(matched_at)
+            detail = "Template ID: {}\nMatched at: {}\n".format(template_id, matched_at)
             if vuln_tags:
                 detail += "Tags: {}\n".format(vuln_tags)
             if description:
@@ -432,27 +510,29 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
 
             self.appendResult("\n[{}] {}\n{}\n".format(severity, name, detail))
 
-            # Create an issue in Burp
-            url = URL(matched_at)
+            # Create an issue in Burp if matched_at is valid
+            if matched_at:
+                url = URL(matched_at)
+            else:
+                return
+
             protocol = url.getProtocol()
             host = url.getHost()
             port = url.getPort() if url.getPort() != -1 else (443 if protocol == 'https' else 80)
-            is_https = protocol == 'https'
+            is_https = (protocol == 'https')
 
             httpService = self._helpers.buildHttpService(host, port, is_https)
             request = self._helpers.buildHttpRequest(url)
 
-            # Set headers if any
+            # Set custom headers if any
             headers_text = self.headersArea.getText()
-            if headers_text:
-                headers = headers_text.strip().split('\n')
-                headers = [header.strip() for header in headers]
+            if headers_text.strip():
+                headers_list = [h.strip() for h in headers_text.strip().split('\n') if h.strip()]
                 requestInfo = self._helpers.analyzeRequest(request)
                 body = request[requestInfo.getBodyOffset():]
-                headers_list = requestInfo.getHeaders()
-                # Replace default headers with custom headers
-                headers_list = [headers_list[0]] + headers
-                request = self._helpers.buildHttpMessage(headers_list, body)
+                orig_headers = requestInfo.getHeaders()
+                new_headers = [orig_headers[0]] + headers_list
+                request = self._helpers.buildHttpMessage(new_headers, body)
 
             httpMessages = [self._callbacks.makeHttpRequest(httpService, request)]
 
@@ -469,13 +549,12 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
             self._callbacks.addScanIssue(issue)
 
         except ValueError:
-            # Not a JSON result, ignore
+            # Not a JSON result, ignore silently
             pass
         except Exception as e:
             self.appendResult("Error processing result: {}\n".format(str(e)))
 
     def appendResult(self, text):
-        # Append text to the results area in a thread-safe manner
         def update():
             self.resultsArea.append(text)
             self.resultsArea.setCaretPosition(self.resultsArea.getDocument().getLength())
@@ -492,20 +571,26 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
             self.updateCommandPreview()
 
     def browseTemplatesPath(self, event):
-        chooser = JFileChooser()
-        chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY)
-        ret = chooser.showOpenDialog(self.mainPanel)
-        if ret == JFileChooser.APPROVE_OPTION:
-            directory = chooser.getSelectedFile()
-            self.templatesPathField.setText(directory.getAbsolutePath())
-            self.updateCommandPreview()
+	    chooser = JFileChooser()
+	    # Allow both files and directories
+	    chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES)
+	    ret = chooser.showOpenDialog(self.mainPanel)
+	    if ret == JFileChooser.APPROVE_OPTION:
+	        directory = chooser.getSelectedFile()
+	        self.templatesPathField.setText(directory.getAbsolutePath())
+	        self.updateCommandPreview()
 
     def createMenuItems(self, invocation):
-        menu = []
+        # Return a Java ArrayList instead of a Python list
+        menu = ArrayList()
         messages = invocation.getSelectedMessages()
         if messages:
             menuItem = JMenuItem("Send to NucleiScanner", actionPerformed=lambda x, inv=invocation: self.sendToNuclei(inv))
-            menu.append(menuItem)
+            menu.add(menuItem)
+
+        # If no menu items, return None
+        if menu.size() == 0:
+            return None
         return menu
 
     def sendToNuclei(self, invocation):
@@ -517,8 +602,11 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
 
             # Automatically extract headers
             headers = requestInfo.getHeaders()
-            headers_text = '\n'.join(headers[1:])  # Exclude the request line
-            self.headersArea.setText(headers_text)
+            if headers and len(headers) > 1:
+                headers_text = '\n'.join(headers[1:])  # Exclude the request line
+                self.headersArea.setText(headers_text)
+            else:
+                self.headersArea.setText('')
 
             self.updateCommandPreview()
 
@@ -535,111 +623,50 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         if custom_args:
             cmd.extend(custom_args.split())
 
-        # Add options based on checkboxes
         if self.newTemplatesCheckbox.isSelected():
             cmd.append('-nt')
 
         if self.autoScanCheckbox.isSelected():
             cmd.append('-as')
 
-        # Severity
         severity = self.severityDropdown.getSelectedItem()
         if severity:
             cmd.extend(['-severity', severity])
 
-        # Rate Limit
         rate_limit = self.rateLimitField.getText().strip()
         if rate_limit:
             cmd.extend(['-rl', rate_limit])
 
-        # Concurrency
         concurrency = self.concurrencyField.getText().strip()
         if concurrency:
             cmd.extend(['-c', concurrency])
 
-        # Tags
         tags = self.tagsField.getText().strip()
         if tags:
             cmd.extend(['-tags', tags])
 
-        # Headers
         headers = self.headersArea.getText()
-        if headers:
+        if headers.strip():
             header_lines = headers.strip().split('\n')
             for header in header_lines:
-                cmd.extend(['-H', header.strip()])
+                header = header.strip()
+                if header:
+                    cmd.extend(['-H', header])
 
-        # Aggiungi il flag -j di default
-        cmd.append('-j')
+        # Add -j by default for JSON output
+        # Adjust if necessary based on Nuclei version.
+        if '-j' not in cmd:
+            cmd.append('-j')
 
-        # Proxy (must be added at the end)
         proxy = self.proxyField.getText().strip()
         if proxy:
             cmd.extend(['-proxy', proxy])
 
-        # Update the command preview area
         self.commandPreviewArea.setText(' '.join(cmd))
 
     def commandEdited(self, event=None):
-        # This method is called when the command preview area is edited
-        pass  # No action needed unless you want to add validation
+        # Called when the command preview area is edited by the user
+        pass
 
     def resetCommand(self, event):
         self.updateCommandPreview()
-
-class FieldListener(DocumentListener):
-    def __init__(self, callback):
-        self.callback = callback
-
-    def insertUpdate(self, event):
-        self.callback()
-
-    def removeUpdate(self, event):
-        self.callback()
-
-    def changedUpdate(self, event):
-        self.callback()
-
-class CustomScanIssue(IScanIssue):
-
-    def __init__(self, httpService, url, httpMessages, name, detail, severity, confidence):
-        self._httpService = httpService
-        self._url = url
-        self._httpMessages = httpMessages
-        self._name = name
-        self._detail = detail
-        self._severity = severity
-        self._confidence = confidence
-
-    def getUrl(self):
-        return self._url
-
-    def getIssueName(self):
-        return self._name
-
-    def getIssueType(self):
-        return 0
-
-    def getSeverity(self):
-        return self._severity
-
-    def getConfidence(self):
-        return self._confidence
-
-    def getIssueBackground(self):
-        return None
-
-    def getRemediationBackground(self):
-        return None
-
-    def getIssueDetail(self):
-        return self._detail
-
-    def getRemediationDetail(self):
-        return None
-
-    def getHttpMessages(self):
-        return self._httpMessages
-
-    def getHttpService(self):
-        return self._httpService

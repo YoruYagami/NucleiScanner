@@ -121,11 +121,11 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         print("Nuclei extension loaded successfully.")
 
     def initUI(self):
-        # Main panel holding our tabbed pane
+        # Main panel holding our tabbed pane.
         self.mainPanel = JPanel(BorderLayout(10, 10))
         self.mainPanel.setBorder(EmptyBorder(10, 10, 10, 10))
 
-        # Create main tabbed pane: one for "Scan" and one for "Settings"
+        # Create main tabbed pane: one for "Scan" and one for "Settings".
         self.mainTabbedPane = JTabbedPane()
 
         #####################
@@ -133,26 +133,42 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         #####################
         self.scanPanel = JPanel(BorderLayout())
 
-        # --- Top panel: target and scan controls ---
+        # --- Top panel: target, templates, and scan controls ---
         scanTopPanel = JPanel(GridBagLayout())
         gbc = GridBagConstraints()
         gbc.insets = Insets(5, 5, 5, 5)
         gbc.fill = GridBagConstraints.HORIZONTAL
 
+        # Row 0: Target field and Browse button.
         gbc.gridx = 0
         gbc.gridy = 0
-        scanTopPanel.add(JLabel("Target URL:"), gbc)
-
+        scanTopPanel.add(JLabel("Target:"), gbc)
         gbc.gridx = 1
         self.targetField = JTextField('', 30)
-        self.targetField.setToolTipText("Enter the target URL to scan")
+        self.targetField.setToolTipText("Enter the target URL, file, or folder")
         scanTopPanel.add(self.targetField, gbc)
-
         gbc.gridx = 2
+        self.browseTargetButton = JButton("Browse", actionPerformed=self.browseTarget)
+        scanTopPanel.add(self.browseTargetButton, gbc)
+
+        # Row 1: Templates field and Browse button.
+        gbc.gridx = 0
+        gbc.gridy = 1
+        scanTopPanel.add(JLabel("Templates:"), gbc)
+        gbc.gridx = 1
+        self.templatesPathField = JTextField('', 30)
+        self.templatesPathField.setToolTipText("Path to the Nuclei templates directory")
+        scanTopPanel.add(self.templatesPathField, gbc)
+        gbc.gridx = 2
+        self.browseTemplatesButton = JButton("Browse", actionPerformed=self.browseTemplatesPath)
+        scanTopPanel.add(self.browseTemplatesButton, gbc)
+
+        # Row 2: Scan control buttons.
+        gbc.gridx = 0
+        gbc.gridy = 2
         self.scanButton = JButton("Start Scan", actionPerformed=self.startScan)
         scanTopPanel.add(self.scanButton, gbc)
-
-        gbc.gridx = 3
+        gbc.gridx = 1
         self.stopButton = JButton("Stop Scan", actionPerformed=self.stopScan)
         self.stopButton.setEnabled(False)
         scanTopPanel.add(self.stopButton, gbc)
@@ -162,7 +178,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         # --- Bottom panel: Nested tabbed pane for Scan Log and Vulnerabilities ---
         self.resultTabbedPane = JTabbedPane()
 
-        # Scan Log tab (enhanced UI)
+        # Scan Log tab.
         self.scanLogPanel = JPanel(BorderLayout())
         self.scanLogPanel.setBorder(TitledBorder("Scan Log"))
         self.resultsArea = JTextArea()
@@ -176,64 +192,41 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         # Vulnerabilities tab: table-based UI with filtering and extra buttons.
         self.vulnPanel = JPanel(BorderLayout())
         self.vulnPanel.setBorder(TitledBorder("Vulnerabilities"))
-
-        # Create a filter panel with a severity combo box and additional buttons.
         filterPanel = JPanel()
         filterPanel.add(JLabel("Filter by Severity:"))
         self.filterCombo = JComboBox(["All", "Critical", "High", "Medium", "Low", "Info"])
         filterPanel.add(self.filterCombo)
-
-        # Add Clear Vulnerabilities button.
         self.clearButton = JButton("Clear Vulnerabilities", actionPerformed=self.clearVulnerabilities)
         filterPanel.add(self.clearButton)
-
-        # Add Import Vulnerabilities button.
         self.importButton = JButton("Import Vulnerabilities", actionPerformed=self.importVulnerabilities)
         filterPanel.add(self.importButton)
-
-        # Add Export Vulnerabilities button.
         self.exportButton = JButton("Export Vulnerabilities", actionPerformed=self.exportVulnerabilities)
         filterPanel.add(self.exportButton)
-
-        # Add Delete Selected button.
         self.deleteSelectedButton = JButton("Delete Selected", actionPerformed=self.deleteSelectedVulnerabilities)
         filterPanel.add(self.deleteSelectedButton)
-
-        # Create a table model with four columns: Template, Protocol, Severity, URL.
         self.vulnTableModel = DefaultTableModel(["Template", "Protocol", "Severity", "URL"], 0)
         self.vulnTable = JTable(self.vulnTableModel)
         self.vulnTable.setFillsViewportHeight(True)
-
-        # Use a TableRowSorter to allow filtering.
         self.vulnSorter = TableRowSorter(self.vulnTableModel)
         self.vulnTable.setRowSorter(self.vulnSorter)
-
-        # Center the content of all cells.
         renderer = DefaultTableCellRenderer()
         renderer.setHorizontalAlignment(SwingConstants.CENTER)
         for i in range(self.vulnTable.getColumnCount()):
             self.vulnTable.getColumnModel().getColumn(i).setCellRenderer(renderer)
-
-        # Optional: set column widths for a better look.
         self.vulnTable.getColumnModel().getColumn(0).setPreferredWidth(150)
         self.vulnTable.getColumnModel().getColumn(1).setPreferredWidth(80)
         self.vulnTable.getColumnModel().getColumn(2).setPreferredWidth(80)
         self.vulnTable.getColumnModel().getColumn(3).setPreferredWidth(300)
-
-        # Define the filter update function.
         def updateFilter(event=None):
             selected = self.filterCombo.getSelectedItem().lower()
             if selected == "all":
                 self.vulnSorter.setRowFilter(None)
             else:
-                # The severity is in the third column (index 2).
                 self.vulnSorter.setRowFilter(RowFilter.regexFilter("(?i)^" + selected + "$", 2))
         self.filterCombo.addActionListener(updateFilter)
-
         vulnTableScrollPane = JScrollPane(self.vulnTable)
         self.vulnPanel.add(filterPanel, BorderLayout.NORTH)
         self.vulnPanel.add(vulnTableScrollPane, BorderLayout.CENTER)
-
         self.resultTabbedPane.addTab("Vulnerabilities", self.vulnPanel)
         self.scanPanel.add(self.resultTabbedPane, BorderLayout.CENTER)
 
@@ -248,7 +241,8 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         gbc.anchor = GridBagConstraints.NORTHWEST
         row = 0
 
-        # Nuclei binary path
+        # Note: The Target and Templates fields have been moved to the Scan tab.
+        # Nuclei binary path.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Nuclei Path:"), gbc)
@@ -261,20 +255,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.settingsPanel.add(self.browseNucleiButton, gbc)
         row += 1
 
-        # Templates path
-        gbc.gridx = 0
-        gbc.gridy = row
-        self.settingsPanel.add(JLabel("Templates Path:"), gbc)
-        gbc.gridx = 1
-        self.templatesPathField = JTextField('', 30)
-        self.templatesPathField.setToolTipText("Path to the Nuclei templates directory")
-        self.settingsPanel.add(self.templatesPathField, gbc)
-        gbc.gridx = 2
-        self.browseTemplatesButton = JButton("Browse", actionPerformed=self.browseTemplatesPath)
-        self.settingsPanel.add(self.browseTemplatesButton, gbc)
-        row += 1
-
-        # Custom Arguments
+        # Custom Arguments.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Custom Arguments:"), gbc)
@@ -286,7 +267,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         gbc.gridwidth = 1
         row += 1
 
-        # Verbosity dropdown
+        # Verbosity dropdown.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Verbosity:"), gbc)
@@ -296,7 +277,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.settingsPanel.add(self.verbosityDropdown, gbc)
         row += 1
 
-        # Severity Dropdown
+        # Severity dropdown.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Severity (-severity):"), gbc)
@@ -306,7 +287,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.settingsPanel.add(self.severityDropdown, gbc)
         row += 1
 
-        # Proxy
+        # Proxy.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Proxy (-proxy):"), gbc)
@@ -316,7 +297,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.settingsPanel.add(self.proxyField, gbc)
         row += 1
 
-        # Checkboxes for additional options
+        # Checkboxes.
         gbc.gridx = 0
         gbc.gridy = row
         self.newTemplatesCheckbox = JCheckBox("Run only New Templates (-nt)")
@@ -328,7 +309,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.settingsPanel.add(self.autoScanCheckbox, gbc)
         row += 1
 
-        # Rate Limit (-rl)
+        # Rate Limit.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Rate Limit:"), gbc)
@@ -338,7 +319,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.settingsPanel.add(self.rateLimitField, gbc)
         row += 1
 
-        # Concurrency (-c)
+        # Concurrency.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Concurrency:"), gbc)
@@ -348,7 +329,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.settingsPanel.add(self.concurrencyField, gbc)
         row += 1
 
-        # Tags (-tags)
+        # Tags.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Tags:"), gbc)
@@ -358,7 +339,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.settingsPanel.add(self.tagsField, gbc)
         row += 1
 
-        # Headers (-H)
+        # Headers.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Headers:"), gbc)
@@ -371,7 +352,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         gbc.gridwidth = 1
         row += 1
 
-        # Command Preview
+        # Command Preview.
         gbc.gridx = 0
         gbc.gridy = row
         self.settingsPanel.add(JLabel("Command:"), gbc)
@@ -389,14 +370,13 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
 
         settingsScrollPane = JScrollPane(self.settingsPanel)
 
-        # Add the Scan and Settings tabs.
+        # Add tabs.
         self.mainTabbedPane.addTab("Scan", self.scanPanel)
         self.mainTabbedPane.addTab("Settings", settingsScrollPane)
-
         self.mainPanel.add(self.mainTabbedPane, BorderLayout.CENTER)
         self._callbacks.addSuiteTab(self)
 
-        # Register document listeners to update command preview.
+        # Register document listeners.
         self.targetField.getDocument().addDocumentListener(FieldListener(self.updateCommandPreview))
         self.nucleiPathField.getDocument().addDocumentListener(FieldListener(self.updateCommandPreview))
         self.templatesPathField.getDocument().addDocumentListener(FieldListener(self.updateCommandPreview))
@@ -412,7 +392,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
 
         self.updateCommandPreview()
 
-        # Add right-click context menu support to the vulnerabilities table.
+        # Add right-click support to vulnerabilities table.
         self.vulnTable.addMouseListener(VulnerabilityTableMouseListener(self))
 
     def getTabCaption(self):
@@ -422,7 +402,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         return self.mainPanel
 
     def loadConfig(self):
-        # Automatic path detection for Nuclei binary.
         nuclei_paths = [
             '/usr/bin/nuclei',
             '/usr/local/bin/nuclei',
@@ -440,7 +419,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
             if saved_path:
                 self.nucleiPathField.setText(saved_path)
 
-        # Automatic path detection for Nuclei templates.
         templates_path = os.path.expanduser('~/nuclei-templates')
         if os.path.isdir(templates_path):
             self.templatesPathField.setText(templates_path)
@@ -498,7 +476,7 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
     def startScan(self, event):
         target = self.targetField.getText().strip()
         if not target:
-            JOptionPane.showMessageDialog(self.mainPanel, "Please enter a target URL.", "Error", JOptionPane.ERROR_MESSAGE)
+            JOptionPane.showMessageDialog(self.mainPanel, "Please enter a target.", "Error", JOptionPane.ERROR_MESSAGE)
             return
 
         nuclei_path = self.nucleiPathField.getText().strip()
@@ -510,8 +488,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         self.scanButton.setEnabled(False)
         self.stopButton.setEnabled(True)
         self.appendResult("Starting new scan...\n")
-        # Optionally, clear the vulnerabilities table (or let the user do it with the Clear button)
-        # self.clearVulnerabilities(None)
 
         cmd = self.commandPreviewArea.getText().strip()
         if not cmd:
@@ -576,7 +552,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         ansi_escape = re.compile(r'\x1B[@-_][0-?]*[ -/]*[@-~]')
         line = ansi_escape.sub('', result).strip()
 
-        # Expected result format: [Template] [Protocol] [Severity] URL
         pattern = r'^\[([^\]]+)\]\s+\[([^\]]+)\]\s+\[(critical|high|medium|low|info)\]\s+(.*)$'
         match = re.match(pattern, line, re.IGNORECASE)
         if match:
@@ -584,8 +559,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
             protocol = match.group(2).strip()
             severity = match.group(3).lower().strip()
             url_str = match.group(4).strip()
-
-            # Prevent duplicate vulnerabilities.
             if not self.isDuplicateVuln(template, protocol, severity, url_str):
                 self.vulnTableModel.addRow([template, protocol, severity, url_str])
         else:
@@ -612,7 +585,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         EventQueue.invokeLater(update)
 
     def clearVulnerabilities(self, event):
-        # Clears all vulnerabilities from the table.
         self.vulnTableModel.setRowCount(0)
 
     def importVulnerabilities(self, event):
@@ -625,7 +597,6 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
                 with open(file.getAbsolutePath(), "r") as f:
                     for line in f:
                         line = line.strip()
-                        # Use the same pattern as for scan output.
                         pattern = r'^\[([^\]]+)\]\s+\[([^\]]+)\]\s+\[(critical|high|medium|low|info)\]\s+(.*)$'
                         match = re.match(pattern, line, re.IGNORECASE)
                         if match:
@@ -653,25 +624,21 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
                         protocol = self.vulnTableModel.getValueAt(row, 1)
                         severity = self.vulnTableModel.getValueAt(row, 2)
                         url = self.vulnTableModel.getValueAt(row, 3)
-                        # Format each vulnerability in plain text.
                         f.write("[{}] [{}] [{}] {}\n".format(template, protocol, severity, url))
                 self.appendResult("Vulnerabilities exported to file: {}\n".format(file.getAbsolutePath()))
             except Exception as e:
                 self.appendResult("Error exporting vulnerabilities: {}\n".format(str(e)))
 
     def deleteSelectedVulnerabilities(self, event):
-        # Delete all selected rows.
         selectedRows = self.vulnTable.getSelectedRows()
         if selectedRows is None or len(selectedRows) == 0:
             return
-        # Remove rows in reverse order.
         for i in sorted(selectedRows, reverse=True):
             modelRow = self.vulnTable.convertRowIndexToModel(i)
             self.vulnTableModel.removeRow(modelRow)
         self.appendResult("Deleted selected vulnerabilities.\n")
 
     def deleteVulnerability(self, row):
-        # Delete a single vulnerability row (used in the context menu).
         model_row = self.vulnTable.convertRowIndexToModel(row)
         self.vulnTableModel.removeRow(model_row)
         self.appendResult("Deleted vulnerability at row {}.\n".format(model_row))
@@ -692,6 +659,16 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
         if ret == JFileChooser.APPROVE_OPTION:
             directory = chooser.getSelectedFile()
             self.templatesPathField.setText(directory.getAbsolutePath())
+            self.updateCommandPreview()
+
+    def browseTarget(self, event):
+        chooser = JFileChooser()
+        chooser.setFileSelectionMode(JFileChooser.FILES_AND_DIRECTORIES)
+        chooser.setDialogTitle("Select Target")
+        ret = chooser.showOpenDialog(self.mainPanel)
+        if ret == JFileChooser.APPROVE_OPTION:
+            target = chooser.getSelectedFile()
+            self.targetField.setText(target.getAbsolutePath())
             self.updateCommandPreview()
 
     def createMenuItems(self, invocation):
@@ -719,8 +696,17 @@ class BurpExtender(IBurpExtender, ITab, IExtensionStateListener, IContextMenuFac
             self.updateCommandPreview()
 
     def updateCommandPreview(self, event=None):
-        target = '{target}'
-        cmd = [self.nucleiPathField.getText().strip() or 'nuclei', '-u', target]
+        target = self.targetField.getText().strip() or '{target}'
+        nuclei_path = self.nucleiPathField.getText().strip() or 'nuclei'
+
+        # Auto-detect target type.
+        if os.path.exists(target):
+            if os.path.isdir(target):
+                cmd = [nuclei_path, '-u', target, '-file']
+            else:
+                cmd = [nuclei_path, '-f', target]
+        else:
+            cmd = [nuclei_path, '-u', target]
 
         templates_path = self.templatesPathField.getText().strip()
         if templates_path:
